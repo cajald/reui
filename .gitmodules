@@ -1,0 +1,3 @@
+[submodule "knfmt"]
+	path = knfmt
+	url = https://github.com/mptre/knfmt

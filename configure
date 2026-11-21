@@ -9,6 +9,17 @@
 IN="Makefile.in"
 OUT="Makefile"
 
+PCIN="libreui.pc.in"
+PCOUT="libreui.pc"
+
+PREFIX="/usr/local"
+VERSION="0.1.0"
+
+TMP_PC="$(mktemp "./.configure.pc.XXXXXX")" || {
+	echo "configure: cannot create temporary file" >&2
+	exit 1
+}
+
 REP_BFILES=""
 REP_CPPFLAGS=""
 REP_CFLAGS=""
@@ -39,7 +50,7 @@ case "$(uname -s)" in
 		echo "configure: using GTK 3 backend"
 
 		REP_BFILES="backend/gtk.c"
-		REP_CPPFLAGS="-D__UNIX_NOMAC__ -D__UNIX__"
+		REP_CPPFLAGS="-D__UNIX_NOMAC__ -D__UNIX__ -DVERSION=\"$VERSION\""
 		;;
 
 	*)
@@ -80,9 +91,26 @@ CPPFLAGS_ESC="$(escape_sed "$REP_CPPFLAGS")"
 CFLAGS_ESC="$(escape_sed "$REP_CFLAGS")"
 LIBS_ESC="$(escape_sed "$REP_LIBS")"
 
+for arg in "$@"; do
+	case $arg in
+		--prefix=*)
+			PREFIX="${arg#--prefix=}"
+			;;
+		--help)
+			echo "reui build system"
+			echo "usage: ./configure [--prefix=PREFIX] --help"
+			exit 0
+			;;
+		*)
+			echo "configure: unknown argument: $arg" >&2
+			;;
+	esac
+done
+
 if ! sed \
 	-e "s|@@BACKEND_SRCS@@|$BFILES_ESC|g" \
 	-e "s|@@CPPFLAGS@@|$CPPFLAGS_ESC|g" \
+	-e "s|@@PREFIX@@|$PREFIX|g" \
 	-e "s|@@CFLAGS@@|$CFLAGS_ESC|g" \
 	-e "s|@@LIBS@@|$LIBS_ESC|g" \
 	"$IN" > "$TMP"; then
@@ -90,10 +118,27 @@ if ! sed \
 	exit 1
 fi
 
+if ! sed \
+	-e "s|@@PREFIX@@|$PREFIX|g" \
+	-e "s|@@VERSION@@|$VERSION|g" \
+	"$PCIN" > "$TMP_PC"; then
+	echo "configure: failed to generate pc file" >&2
+	exit 1
+fi
+
+
 if ! mv "$TMP" "$OUT"; then
 	echo "configure: failed to write $OUT" >&2
 	exit 1
 fi
 
+if ! mv "$TMP_PC" "$PCOUT"; then
+	echo "configure: failed to write $PCOUT" >&2
+	exit 1
+fi
+
+
+
 echo "configure: created $OUT"
 echo "configure: run make to build libreui.a"
+
