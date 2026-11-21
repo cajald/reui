@@ -9,7 +9,7 @@ ARFLAGS = rcs
 TARG = libreui.a
 SHARED = libreui.so.1
 MAN = reui.3
-HEADERS = reui/reui.h reui/util.h
+HEADERS = include/reui/reui.h include/reui/util.h
 
 PREFIX ?= @@PREFIX@@
 DESTDIR ?=
@@ -20,7 +20,7 @@ MANDIR ?= ${PREFIX}/man
 MAN3DIR ?= ${PREFIX}/man3
 
 # Sources
-CFILES = reui.c widgets/widget.c @@BACKEND_SRCS@@
+CFILES = src/reui.c widgets/widget.c @@BACKEND_SRCS@@
 OFILES = ${CFILES:.c=.o}
 
 # Preprocessor and compiler flags
