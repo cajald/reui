@@ -1,0 +1,64 @@
+.\"
+.\" reui.3 -- docs
+.\"
+
+.Dd November 06, 2026
+.Dt REUI 3
+.Os
+.Sh NAME
+.Nm reui
+.Nd portable ui toolkit
+.Sh SYNOPSIS
+.In reui/reui.h
+.In reui/util.h
+
+.Ft bool
+.Fn reui_setup "void"
+.Ft void
+.Fn reui_teardown "void"
+.Ft Win
+.Fn win_new "const char* title" "int x" "int y"
+.Ft bool
+.Fn win_shouldclose "Win* win"
+.Ft void
+.Fn win_kill "Win* to_kill"
+.\" NOTE: keep this list of functions updated!
+.Sh DESCRIPTION
+.Nm
+is a portable UI toolkit that render native-looking applications. It abstracts
+OS UI toolkit with a simple, C-native, easy to use API.
+.Pp
+.Nm
+provides few abstractions and is deliberately low-level, while the
+.Sy reui/util.h
+header provides small utilities to ease developing applications with the
+library. The development interface is split into the following abstractions:
+
+.Bl
+.It
+A widget is a graphical, interactive element ultimately displayed on the
+window. It holds a set of private state and is rendered by the backend.
+
+.It
+.Ft MesgMap
+    Associates events to functions (named call-back functions) to call back
+using the
+.Fn fire_messages
+function. Callback functions take two arguments: an object representing the
+widget where the event took place, and the userdata argument, which is of type
+.Ft void*
+and can be set for each association individually. This is usually used for
+passing application state without globals (which is considered a good general
+practice and avoids bugs in multi-threaded applications).
+.It
+.Ft UIMap
+    Stores a representation of the widgets. This representation is used by the
+backend to render the specified widgets.
+.Ft UIMap
+only stores references to these widgets, freeing an
+.Ft UIMap
+does
+.Sy NOT
+free the widgets it holds. Think of it as more of a "register" of the UI
+widgets, not a place to store widgets.
+
