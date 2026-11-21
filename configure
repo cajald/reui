@@ -31,7 +31,7 @@ TMP="$(mktemp "./.configure.XXXXXX")" || {
 	exit 1
 }
 
-trap 'rm -f "$TMP"' 0
+trap 'rm -f "$TMP" "$TMP_PC"' 0
 trap 'exit 1' HUP INT TERM
 
 # Check the Makefile template.
@@ -47,9 +47,9 @@ escape_sed()
 
 case "$(uname -s)" in
 	Linux|OpenBSD|FreeBSD|NetBSD)
-		echo "configure: using GTK 3 backend"
+		echo "configure: using SDL2 backend"
 
-		REP_BFILES="backend/gtk.c"
+		REP_BFILES="backend/sdl.c"
 		REP_CPPFLAGS="-D__UNIX_NOMAC__ -D__UNIX__ -DVERSION=\"$VERSION\""
 		;;
 
@@ -70,19 +70,19 @@ fi
 
 echo "configure: using $PKGCONFIG"
 
-# check if gtk3 is there
-if ! "$PKGCONFIG" --exists gtk+-3.0; then
-	echo "configure: GTK 3 development files not found" >&2
+# Check if SDL2 is available.
+if ! "$PKGCONFIG" --exists sdl2; then
+	echo "configure: SDL2 development files not found" >&2
 	exit 1
 fi
 
-REP_CFLAGS="$("$PKGCONFIG" --cflags gtk+-3.0)" || {
-	echo "configure: failed to obtain GTK compiler flags" >&2
+REP_CFLAGS="$("$PKGCONFIG" --cflags sdl2)" || {
+	echo "configure: failed to obtain SDL2 compiler flags" >&2
 	exit 1
 }
 
-REP_LIBS="$("$PKGCONFIG" --libs gtk+-3.0)" || {
-	echo "configure: failed to obtain GTK linker flags" >&2
+REP_LIBS="$("$PKGCONFIG" --libs sdl2)" || {
+	echo "configure: failed to obtain SDL2 linker flags" >&2
 	exit 1
 }
 
@@ -90,19 +90,22 @@ BFILES_ESC="$(escape_sed "$REP_BFILES")"
 CPPFLAGS_ESC="$(escape_sed "$REP_CPPFLAGS")"
 CFLAGS_ESC="$(escape_sed "$REP_CFLAGS")"
 LIBS_ESC="$(escape_sed "$REP_LIBS")"
+PREFIX_ESC="$(escape_sed "$PREFIX")"
 
 for arg in "$@"; do
 	case $arg in
 		--prefix=*)
 			PREFIX="${arg#--prefix=}"
+			PREFIX_ESC="$(escape_sed "$PREFIX")"
 			;;
 		--help)
 			echo "reui build system"
-			echo "usage: ./configure [--prefix=PREFIX] --help"
+			echo "usage: ./configure [--prefix=PREFIX] [--help]"
 			exit 0
 			;;
 		*)
 			echo "configure: unknown argument: $arg" >&2
+			exit 1
 			;;
 	esac
 done
@@ -110,7 +113,7 @@ done
 if ! sed \
 	-e "s|@@BACKEND_SRCS@@|$BFILES_ESC|g" \
 	-e "s|@@CPPFLAGS@@|$CPPFLAGS_ESC|g" \
-	-e "s|@@PREFIX@@|$PREFIX|g" \
+	-e "s|@@PREFIX@@|$PREFIX_ESC|g" \
 	-e "s|@@CFLAGS@@|$CFLAGS_ESC|g" \
 	-e "s|@@LIBS@@|$LIBS_ESC|g" \
 	"$IN" > "$TMP"; then
@@ -119,13 +122,12 @@ if ! sed \
 fi
 
 if ! sed \
-	-e "s|@@PREFIX@@|$PREFIX|g" \
+	-e "s|@@PREFIX@@|$PREFIX_ESC|g" \
 	-e "s|@@VERSION@@|$VERSION|g" \
 	"$PCIN" > "$TMP_PC"; then
 	echo "configure: failed to generate pc file" >&2
 	exit 1
 fi
-
 
 if ! mv "$TMP" "$OUT"; then
 	echo "configure: failed to write $OUT" >&2
@@ -137,8 +139,5 @@ if ! mv "$TMP_PC" "$PCOUT"; then
 	exit 1
 fi
 
-
-
 echo "configure: created $OUT"
 echo "configure: run make to build libreui.a"
-
