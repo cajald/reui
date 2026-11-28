@@ -1,0 +1,99 @@
+#!/bin/sh
+#
+# configure -- tailor the makefile to platforms
+#
+# No auto*hell crap here. Also, this is called configure but you can modify
+# it if you want.
+#
+
+IN="Makefile.in"
+OUT="Makefile"
+
+REP_BFILES=""
+REP_CPPFLAGS=""
+REP_CFLAGS=""
+REP_LIBS=""
+PKGCONFIG=""
+
+TMP="$(mktemp "./.configure.XXXXXX")" || {
+	echo "configure: cannot create temporary file" >&2
+	exit 1
+}
+
+trap 'rm -f "$TMP"' 0
+trap 'exit 1' HUP INT TERM
+
+# Check the Makefile template.
+if [ ! -r "$IN" ]; then
+	echo "configure: cannot read $IN" >&2
+	exit 1
+fi
+
+escape_sed()
+{
+	printf '%s\n' "$1" | sed 's/[\\&|]/\\&/g'
+}
+
+case "$(uname -s)" in
+	Linux|OpenBSD|FreeBSD|NetBSD)
+		echo "configure: using GTK 3 backend"
+
+		REP_BFILES="backend/gtk.c"
+		REP_CPPFLAGS="-D__UNIX_NOMAC__ -D__UNIX__"
+		;;
+
+	*)
+		echo "configure: unsupported platform: $(uname -s)" >&2
+		exit 1
+		;;
+esac
+
+if command -v pkgconf >/dev/null 2>&1; then
+	PKGCONFIG="pkgconf"
+elif command -v pkg-config >/dev/null 2>&1; then
+	PKGCONFIG="pkg-config"
+else
+	echo "configure: need either pkgconf or pkg-config" >&2
+	exit 1
+fi
+
+echo "configure: using $PKGCONFIG"
+
+# check if gtk3 is there
+if ! "$PKGCONFIG" --exists gtk+-3.0; then
+	echo "configure: GTK 3 development files not found" >&2
+	exit 1
+fi
+
+REP_CFLAGS="$("$PKGCONFIG" --cflags gtk+-3.0)" || {
+	echo "configure: failed to obtain GTK compiler flags" >&2
+	exit 1
+}
+
+REP_LIBS="$("$PKGCONFIG" --libs gtk+-3.0)" || {
+	echo "configure: failed to obtain GTK linker flags" >&2
+	exit 1
+}
+
+BFILES_ESC="$(escape_sed "$REP_BFILES")"
+CPPFLAGS_ESC="$(escape_sed "$REP_CPPFLAGS")"
+CFLAGS_ESC="$(escape_sed "$REP_CFLAGS")"
+LIBS_ESC="$(escape_sed "$REP_LIBS")"
+
+if ! sed \
+	-e "s|@@BACKEND_SRCS@@|$BFILES_ESC|g" \
+	-e "s|@@CPPFLAGS@@|$CPPFLAGS_ESC|g" \
+	-e "s|@@CFLAGS@@|$CFLAGS_ESC|g" \
+	-e "s|@@LIBS@@|$LIBS_ESC|g" \
+	"$IN" > "$TMP"; then
+	echo "configure: failed to generate Makefile" >&2
+	exit 1
+fi
+
+if ! mv "$TMP" "$OUT"; then
+	echo "configure: failed to write $OUT" >&2
+	exit 1
+fi
+
+echo "configure: created $OUT"
+echo "configure: run make to build libreui.a"

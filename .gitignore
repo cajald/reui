@@ -1,0 +1,16 @@
+#
+# .gitignore -- ignore trash
+#
+
+Makefile
+.configure*
+*~
+\#*
+*.tmp
+*.swo
+*.swp
+*.d
+*.a
+*.o
+*.dll
+*.lib
